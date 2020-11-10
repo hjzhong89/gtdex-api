@@ -1,4 +1,4 @@
-const gtdCountryList = require('../../gtdex/src/assets/gtd_country_list.json');
+const gtdCountryList = require('../resources/gtd_country_list.json');
 const GTD = require('../resources/gtd.json')
     .map(incident => ({
         ...incident,
