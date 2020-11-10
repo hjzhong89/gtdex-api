@@ -1,41 +1,39 @@
 const gtdCountryList = require('../../gtdex/src/assets/gtd_country_list.json');
 const GTD = require('../resources/gtd.json')
+    .map(incident => ({
+        ...incident,
+        latitude: parseFloat(incident.latitude),
+        longitude: parseFloat(incident.longitude),
+        nkill: parseInt(incident.nkill),
+    }))
     .filter(incident => Object.keys(gtdCountryList).includes(incident.country_txt))
 const GTD_MAP = require('../resources/index_map.json');
 
 const express = require('express');
 const router = express.Router();
+const MAX_RESULTS = 1000
 
-
-const getCasualties = async ({
-                                 countries = [],
-                             } = {}) => {
-
-
-    const casualties = GTD
-        // .filter(incident => countries.includes(incident.country_txt))
+const getCasualties = async () => {
+    return GTD
         .reduce((countries, incident) => {
             const id = gtdCountryList[incident.country_txt].id;
             if (countries[id]) {
-                countries[id] += 1;
+                countries[id] += incident.nkill;
             } else {
-                countries[id] = 1;
+                countries[id] = incident.nkill;
             }
             return countries;
         }, {})
-    console.log('casualties', casualties)
-    return casualties
 };
 
-const getIncidents = async ({
-                                // countries = gtdCountryList,
-                                count = MAX_RESULTS,
-                                lastId = undefined,
-                            }) => {
-
+const getIncidents = async (country,
+                            count = MAX_RESULTS,
+                            lastId = undefined,
+                            minNkill = 0) => {
     const start = GTD_MAP[lastId] ? GTD_MAP[lastId] + 1 : 0;
     return GTD
-        // .filter(incident => countries.includes(incident.country_txt))
+        .filter(incident => incident.country_txt === country && incident.nkill >= minNkill)
+        .sort((a, b) => b.nkill - a.nkill)
         .slice(start, start + count);
 };
 
@@ -43,18 +41,17 @@ const getIncidents = async ({
  * Get Incidents API
  */
 router.get('/incidents', async function (req, res, next) {
-    console.log('/incidents', req.query.count, req.query.lastId);
-    const params = {
-        count: req.query.count ? req.query.count : 1000,
-        lastId: req.query.lastId ? req.query.lastId.toString() : req.query.lastId,
-    };
-    const incidents = await getIncidents(params);
+    const country = req.query.country;
+    const count = req.query.count;
+    const lastId = req.query.lastId;
+
+    const incidents = await getIncidents(country, count, lastId);
+
     res.send(incidents);
 });
 
 router.get('/casualties', async function (req, res) {
     const casualties = await getCasualties();
-    console.log('casualties', JSON.stringify(casualties))
     res.send(casualties);
 });
 
