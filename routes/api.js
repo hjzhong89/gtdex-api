@@ -1,58 +1,76 @@
+const decode = require('urldecode');
 const gtdCountryList = require('../resources/gtd_country_list.json');
 const GTD = require('../resources/gtd.json')
     .map(incident => ({
         ...incident,
         latitude: parseFloat(incident.latitude),
         longitude: parseFloat(incident.longitude),
-        nkill: parseInt(incident.nkill),
+        nkill: incident.nkill ? parseInt(incident.nkill) : 0,
     }))
     .filter(incident => Object.keys(gtdCountryList).includes(incident.country_txt))
-const GTD_MAP = require('../resources/index_map.json');
 
 const express = require('express');
 const router = express.Router();
-const MAX_RESULTS = 1000
 
-const getCasualties = async () => {
-    return GTD
+/**
+ * Groups incidents by country and calculates country level statistics
+ * @returns {Promise<*>}
+ */
+const getCountry = async ({
+                              countries = undefined,
+                              minCasualties = 0,
+                          } = {}) => {
+    let data = GTD;
+    if (countries) {
+        data = data.filter(i => countries.includes(i.country_txt))
+    }
+    if (minCasualties) {
+        data = data.filter(i => i.nkill > minCasualties);
+    }
+
+    return data
         .reduce((countries, incident) => {
             const id = gtdCountryList[incident.country_txt].id;
             if (countries[id]) {
-                countries[id] += incident.nkill;
+                countries[id].totalCasualties += incident.nkill;
+                countries[id].totalIncidents += 1;
+                countries[id].incidents.push(incident.eventid);
             } else {
-                countries[id] = incident.nkill;
+                countries[id] = {
+                    name: incident.country_txt,
+                    totalCasualties: incident.nkill ? incident.nkill : 0,
+                    totalIncidents: 1,
+                    incidents: [incident.eventid]
+                }
             }
             return countries;
-        }, {})
-};
-
-const getIncidents = async (country,
-                            count = MAX_RESULTS,
-                            lastId = undefined,
-                            minNkill = 0) => {
-    const start = GTD_MAP[lastId] ? GTD_MAP[lastId] + 1 : 0;
-    return GTD
-        .filter(incident => incident.country_txt === country && incident.nkill >= minNkill)
-        .sort((a, b) => b.nkill - a.nkill)
-        .slice(start, start + count);
+        }, {});
 };
 
 /**
  * Get Incidents API
  */
-router.get('/incidents', async function (req, res, next) {
-    const country = req.query.country;
-    const count = req.query.count;
-    const lastId = req.query.lastId;
+router.get('/country', async function (req, res, next) {
+    const countries = req.query.countries ? JSON.parse(decode(req.query.countries)) : undefined;
+    const minCasualties = req.query.minCasualties ? parseInt(req.query.minCasualties) : 0;
 
-    const incidents = await getIncidents(country, count, lastId);
+    const country = await getCountry({countries, minCasualties});
 
-    res.send(incidents);
+    res.send(country);
 });
 
-router.get('/casualties', async function (req, res) {
-    const casualties = await getCasualties();
-    res.send(casualties);
-});
+router.get('/incident', async function (req, res, next) {
+    let data = GTD;
 
+
+    if (req.query.country) {
+        const country = req.query.country;
+        data = data.filter(i => i.country_txt === country)
+    }
+    if (req.query.minCasualties) {
+        const minCasualties = req.query.minCasualties;
+        data = data.filter(i => i.nkill > minCasualties)
+    }
+    res.send(data)
+});
 module.exports = router;
