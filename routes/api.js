@@ -34,12 +34,14 @@ const getCountry = async ({
             if (countries[id]) {
                 countries[id].totalCasualties += incident.nkill;
                 countries[id].totalIncidents += 1;
+                countries[id].mostFatal = Math.max(countries[id].mostFatal, incident.nkill);
                 countries[id].incidents.push(incident.eventid);
             } else {
                 countries[id] = {
                     name: incident.country_txt,
                     totalCasualties: incident.nkill ? incident.nkill : 0,
                     totalIncidents: 1,
+                    mostFatal: incident.nkill ? incident.nkill : 0,
                     incidents: [incident.eventid]
                 }
             }
