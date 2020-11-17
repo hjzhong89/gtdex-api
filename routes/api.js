@@ -13,28 +13,38 @@ const GTD = require('../resources/gtd.json')
 const express = require('express');
 const router = express.Router();
 
+const filterCountry = (data, country) => {
+    if (country) {
+        data = data.filter(i => i.country_txt === country);
+        console.log('Filtered Country', country, data.length)
+    }
+    return data;
+}
+const filterYears = (data, params) => {
+    if (params.startYear && params.endYear) {
+        data = data.filter(i => i.iyear >= params.startYear && i.iyear <= params.endYear)
+        console.log('Filtered Year', data[0].iyear, params.startYear, params.endYear, data.length)
+    }
+    return data;
+}
+const filterCasualties = (data, minCasualties) => {
+    if (minCasualties) {
+        data = data.filter(i => i.nkill >= minCasualties)
+        console.log('Filtered Min Casualties', minCasualties, data.length)
+    }
+    return data;
+}
 const filterData = (req) => {
-    let data = GTD;
     const country = req.query.country ? decode(req.query.country) : undefined;
-    const year = req.query.year ? parseInt(req.query.year) : undefined;
+    const startYear = req.query.startYear ? parseInt(req.query.startYear) : undefined;
+    const endYear = req.query.endYear ? parseInt(req.query.endYear) : undefined;
     const minCasualties = req.query.minCasualties ? parseInt(req.query.minCasualties) : 0;
 
-    if (country && country.length > 0) {
-        console.log('Filter Countries', JSON.stringify(country))
-        data = data.filter(i => i.country_txt === country)
-    }
-    if (year) {
-        console.log('Filter Years', year)
-        data = data.filter(i => {
-            console.log('iyear', i.iyear, year)
-            return i.iyear === year
-        })
-    }
-    if (minCasualties) {
-        console.log('Filter Min Casualties', minCasualties);
-        data = data.filter(i => i.nkill > minCasualties);
-    }
-
+    let data = GTD;
+    console.log('Total records', data.length)
+    data = filterCountry(data, country)
+    data = filterYears(data, {startYear, endYear});
+    data = filterCasualties(data, minCasualties)
     return data;
 }
 /**
