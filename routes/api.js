@@ -6,13 +6,13 @@ const GTD = require('../resources/gtd.json')
         latitude: parseFloat(incident.latitude),
         longitude: parseFloat(incident.longitude),
         iyear: incident.iyear ? parseInt(incident.iyear) : 0,
-        imonth: inicident.imonth ? parseInt(incident.imonth) : 0,
+        imonth: incident.imonth ? parseInt(incident.imonth) : 0,
         iday: incident.iday ? parseInt(incident.iday) : 0,
         nwound: incident.nwound ? parseInt(incident.nwound) : 0,
         nkill: incident.nkill ? parseInt(incident.nkill) : 0,
     }))
     .filter(incident => Object.keys(gtdCountryList).includes(incident.country_txt))
-
+const elasticnet = require('../resources/elasticnet.json');
 const express = require('express');
 const router = express.Router();
 
@@ -22,7 +22,6 @@ const filterCountry = (data, country) => {
     }
     return data;
 }
-
 const filterYears = (data, params) => {
     if (params.startYear && params.endYear) {
         data = data.filter(i => i.iyear >= params.startYear && i.iyear <= params.endYear)
@@ -35,7 +34,7 @@ const filterCasualties = (data, minCasualties) => {
     }
     return data;
 }
-const filterData = (req) => {
+const filterGTD = (req) => {
     const country = req.query.country ? decode(req.query.country) : undefined;
     const startYear = req.query.startYear ? parseInt(req.query.startYear) : undefined;
     const endYear = req.query.endYear ? parseInt(req.query.endYear) : undefined;
@@ -47,12 +46,17 @@ const filterData = (req) => {
     data = filterCasualties(data, minCasualties)
     return data;
 }
+
+const filterElasticNet = (req) => {
+    const eventid = req.query.eventid
+    return elasticnet[eventid]
+}
 /**
- * Get Incidents API
+ * Get Incidents grouped by country with total incidents, total casualties, and most fatal count
  */
 router.get('/country', async function (req, res, next) {
     console.log('country', JSON.stringify(req.query))
-    const data = filterData(req)
+    const data = filterGTD(req)
     const country = data
         .reduce((countries, incident) => {
             const id = gtdCountryList[incident.country_txt].id;
@@ -75,10 +79,21 @@ router.get('/country', async function (req, res, next) {
     res.send(country);
 });
 
+/**
+ * Get incidents
+ */
 router.get('/incident', async function (req, res, next) {
     console.log('incident', JSON.stringify(req.query))
-    const data = filterData(req);
+    const data = filterGTD(req);
     res.send(data)
 
+});
+
+/**
+ * Get elasticnet labels
+ */
+router.get('/elasticnet', async function (req, res) {
+    const data = filterElasticNet(req);
+    res.send(data);
 });
 module.exports = router;
