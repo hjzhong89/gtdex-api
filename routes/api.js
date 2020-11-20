@@ -6,6 +6,9 @@ const GTD = require('../resources/gtd.json')
         latitude: parseFloat(incident.latitude),
         longitude: parseFloat(incident.longitude),
         iyear: incident.iyear ? parseInt(incident.iyear) : 0,
+        imonth: inicident.imonth ? parseInt(incident.imonth) : 0,
+        iday: incident.iday ? parseInt(incident.iday) : 0,
+        nwound: incident.nwound ? parseInt(incident.nwound) : 0,
         nkill: incident.nkill ? parseInt(incident.nkill) : 0,
     }))
     .filter(incident => Object.keys(gtdCountryList).includes(incident.country_txt))
@@ -16,21 +19,19 @@ const router = express.Router();
 const filterCountry = (data, country) => {
     if (country) {
         data = data.filter(i => i.country_txt === country);
-        console.log('Filtered Country', country, data.length)
     }
     return data;
 }
+
 const filterYears = (data, params) => {
     if (params.startYear && params.endYear) {
         data = data.filter(i => i.iyear >= params.startYear && i.iyear <= params.endYear)
-        console.log('Filtered Year', data[0].iyear, params.startYear, params.endYear, data.length)
     }
     return data;
 }
 const filterCasualties = (data, minCasualties) => {
     if (minCasualties) {
         data = data.filter(i => i.nkill >= minCasualties)
-        console.log('Filtered Min Casualties', minCasualties, data.length)
     }
     return data;
 }
@@ -41,7 +42,6 @@ const filterData = (req) => {
     const minCasualties = req.query.minCasualties ? parseInt(req.query.minCasualties) : 0;
 
     let data = GTD;
-    console.log('Total records', data.length)
     data = filterCountry(data, country)
     data = filterYears(data, {startYear, endYear});
     data = filterCasualties(data, minCasualties)
